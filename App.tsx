@@ -31,26 +31,25 @@ function calculateTotal(EMI: number, N: number): number {
 const App = () => {
   const [loanAmount, setLoanAmount] = useState(20000);
   const [selectedTenure, setSelectedTenure] = useState(3);
-  const [timer, setTimer] = useState(60);
-  const expiryRef = useRef<number>(Date.now() + 60 * 1000);
+
+  // 1-hour timer
+  const [timer, setTimer] = useState(3600); // seconds
+  const expiryRef = useRef<number>(Date.now() + 3600 * 1000); // 1 hour from now
   const intervalRef = useRef<number | null>(null);
+
   const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState);
   const appStateRef = useRef<AppStateStatus>(appState);
 
   // Timer logic
   useEffect(() => {
-    // set an absolute expiry time so background time is handled correctly
-    expiryRef.current = Date.now() + 60 * 1000;
-    setTimer(60);
+    expiryRef.current = Date.now() + 3600 * 1000;
+    setTimer(3600);
 
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
       const prev = appStateRef.current;
-      // when the app becomes active again after being backgrounded/inactive
       if (prev && prev.match(/inactive|background/) && nextAppState === 'active') {
-        // compute remaining seconds from the absolute expiry time
         const remaining = Math.max(Math.ceil((expiryRef.current - Date.now()) / 1000), 0);
         setTimer(remaining);
-        // restart interval if it was cleared and there is remaining time
         if (!intervalRef.current && remaining > 0) {
           intervalRef.current = setInterval(() => {
             const remainingInner = Math.max(Math.ceil((expiryRef.current - Date.now()) / 1000), 0);
@@ -63,13 +62,13 @@ const App = () => {
         }
       }
 
-      // when the app goes to background, clear interval (expiryRef remains unchanged)
       if (nextAppState === 'background') {
         if (intervalRef.current) {
           clearInterval(intervalRef.current as any);
           intervalRef.current = null;
         }
       }
+
       appStateRef.current = nextAppState;
       setAppState(nextAppState);
     };
@@ -100,9 +99,15 @@ const App = () => {
     return { months: n, emi, total };
   });
 
+  // Format timer to HH:MM:SS
+  const hours = Math.floor(timer / 3600);
+  const minutes = Math.floor((timer % 3600) / 60);
+  const seconds = timer % 60;
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={'#44226E'} />
+
       {/* Header */}
       <LinearGradient
         colors={['#44226E', '#8B6CB1']}
@@ -128,7 +133,7 @@ const App = () => {
           <View style={styles.sliderContainer}>
             {/* Background for empty part */}
             <LinearGradient
-              colors={['#E0E0E0', '#E0E0E0']} // color for unfilled part
+              colors={['#E0E0E0', '#E0E0E0']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.gradientTrack}
@@ -136,12 +141,12 @@ const App = () => {
 
             {/* Gradient for filled part */}
             <LinearGradient
-              colors={['#44226E', '#8B6CB1']} // color for filled part
+              colors={['#44226E', '#8B6CB1']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={[
                 styles.gradientTrack,
-                { width: `${((loanAmount - LOAN_MIN) / (LOAN_MAX - LOAN_MIN)) * 100}%` }, // dynamic width
+                { width: `${((loanAmount - LOAN_MIN) / (LOAN_MAX - LOAN_MIN)) * 100}%` },
               ]}
             />
 
@@ -157,7 +162,6 @@ const App = () => {
               onValueChange={setLoanAmount}
             />
           </View>
-
 
           <View style={styles.sliderLabels}>
             <Text style={styles.sliderLabel}>₹{LOAN_MIN.toLocaleString()}</Text>
@@ -182,7 +186,9 @@ const App = () => {
         <View style={styles.tenureTable}>
           {/* Header Row */}
           <View style={[styles.tenureRow, styles.tenureHeaderRow]}>
-            <View style={styles.tenureCell}><Text style={styles.tenureCellHeader}>Months</Text></View>
+            <View style={styles.tenureCell}>
+              <Text style={styles.tenureCellHeader}>Months</Text>
+            </View>
             {emiList.map(item => {
               const selected = selectedTenure === item.months;
               return (
@@ -207,11 +213,15 @@ const App = () => {
             {emiList.map(item => {
               const selected = selectedTenure === item.months;
               return (
-                <View key={item.months} style={[styles.tenureCell, selected && styles.tenureCellSelected]}>
+                <TouchableOpacity
+                  key={item.months}
+                  style={[styles.tenureCell, selected && styles.tenureCellSelected]}
+                  onPress={() => setSelectedTenure(item.months)}
+                >
                   <Text style={[styles.tenureText, selected ? styles.tenureTextSelected : styles.tenureTextFaded]}>
                     ₹{item.emi.toLocaleString()}
                   </Text>
-                </View>
+                </TouchableOpacity>
               );
             })}
           </View>
@@ -222,21 +232,32 @@ const App = () => {
             {emiList.map(item => {
               const selected = selectedTenure === item.months;
               return (
-                <View key={item.months} style={[styles.tenureCell, selected && styles.tenureCellSelected]}>
+                <TouchableOpacity
+                  key={item.months}
+                  style={[styles.tenureCell, selected && styles.tenureCellSelected]}
+                  onPress={() => setSelectedTenure(item.months)}
+                >
                   <Text style={[styles.tenureText, selected ? styles.tenureTextSelected : styles.tenureTextFaded]}>
                     ₹{item.total.toLocaleString()}
                   </Text>
-                </View>
+                </TouchableOpacity>
               );
             })}
           </View>
 
+
           <View style={styles.tenureRow}>
-            <View style={styles.tenureCell}><Text style={styles.tenureCellHeader} /></View>
+            <View style={styles.tenureCell}>
+              <Text style={styles.tenureCellHeader} />
+            </View>
             {emiList.map(item => {
               const selected = selectedTenure === item.months;
               return (
-                <View key={item.months} style={[styles.tenureCell, selected && styles.tenureCellSelected]}>
+                <TouchableOpacity
+                  key={item.months}
+                  style={[styles.tenureCell, selected && styles.tenureCellSelected]}
+                  onPress={() => setSelectedTenure(item.months)}
+                >
                   {selected ? (
                     <View style={styles.checkBadge}>
                       <Text style={styles.checkBadgeText}>✓</Text>
@@ -246,16 +267,19 @@ const App = () => {
                       <Text style={styles.unCheckBadgeText}>✓</Text>
                     </View>
                   )}
-                </View>
+                </TouchableOpacity>
               );
             })}
           </View>
+
         </View>
       </View>
 
       {/* Timer */}
       <View style={styles.timerContainer}>
-        <Text style={styles.timerText}>Offer expires in 00:{timer < 10 ? `0${timer}` : timer} sec</Text>
+        <Text style={styles.timerText}>
+          Offer expires in {hours}:{minutes < 10 ? `0${minutes}` : minutes}:{seconds < 10 ? `0${seconds}` : seconds}
+        </Text>
       </View>
     </SafeAreaView>
   );
@@ -279,7 +303,6 @@ const styles = StyleSheet.create({
   // Gradient Slider
   sliderContainer: { width: '100%', height: 42, justifyContent: 'center' },
   gradientTrack: { position: 'absolute', height: 6, borderRadius: 3, width: '100%', top: 18 },
-
   slider: { width: '100%', height: 40 },
 
   tenureTable: { borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#EAEAFF' },
